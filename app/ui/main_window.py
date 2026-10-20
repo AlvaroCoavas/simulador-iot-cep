@@ -10,9 +10,15 @@ from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QWidget
 from .. import config
 from ..core.cep_engine import CepEngine, EstadoProceso
 from ..core.mqtt_link import MqttLink
+from ..core.registro import RegistroMuestras
 from ..core.sensor_model import ModeloSensor
 from .cep_panel import CepPanel
-from .hardware_panel import FUENTE_LOCAL, FUENTE_MQTT, HardwarePanel
+from .hardware_panel import (
+    FUENTE_LOCAL,
+    FUENTE_MQTT,
+    INTERVALO_POR_DEFECTO,
+    HardwarePanel,
+)
 
 
 class MainWindow(QWidget):
@@ -26,6 +32,8 @@ class MainWindow(QWidget):
         # --- Modelo ---
         self.motor = CepEngine(lsc=8.0, lic=2.0, objetivo=5.0)
         self.sensor = ModeloSensor(valor_inicial=5.0, ambiente=5.0)
+        # Historial de la tabla y del CSV (una lectura cada N segundos).
+        self.registro = RegistroMuestras(intervalo_s=INTERVALO_POR_DEFECTO)
         self.fuente = FUENTE_MQTT
 
         # --- Interfaz ---
@@ -46,6 +54,7 @@ class MainWindow(QWidget):
         self.panel_hardware.fuente_cambiada.connect(self.cambiar_fuente)
         self.panel_hardware.ambiente_cambiado.connect(self.fijar_ambiente)
         self.panel_hardware.limites_cambiados.connect(self.cambiar_limites)
+        self.panel_hardware.intervalo_cambiado.connect(self.registro.set_intervalo)
         self.panel_cep.exportar_solicitado.connect(self.exportar_csv)
 
         # --- Enlace MQTT ---
@@ -98,7 +107,10 @@ class MainWindow(QWidget):
 
         self.panel_hardware.set_lectura(muestra.temperatura, muestra.estado)
         self.panel_cep.set_banner(muestra.estado)
-        self.panel_cep.set_muestra(muestra)
+        # El grafico, los indicadores y los estados usan TODAS las lecturas;
+        # la tabla y el CSV solo guardan una cada N segundos.
+        if self.registro.registrar(muestra):
+            self.panel_cep.set_muestra(muestra)
         self.panel_cep.set_grafico(
             *self.motor.serie(config.VENTANA_GRAFICO),
             self.motor.lsc,
@@ -151,7 +163,11 @@ class MainWindow(QWidget):
 
     def reiniciar_metricas(self) -> None:
         """Borra las muestras acumuladas (no cambia los limites)."""
+        # Si los limites del formulario no son validos, se vuelven a los
+        # valores por defecto antes de reiniciar las metricas.
+        self.panel_hardware.restablecer_limites_si_invalidos()
         self.motor.reiniciar()
+        self.registro.limpiar()
         self.panel_cep.limpiar_tabla()
         self.panel_cep.set_grafico(
             *self.motor.serie(config.VENTANA_GRAFICO),
@@ -162,7 +178,10 @@ class MainWindow(QWidget):
         self.panel_cep.set_indicadores(0.0, 0, 0.0, EstadoProceso.ESTABLE)
 
     def exportar_csv(self) -> None:
-        """Exporta TODAS las lecturas de la sesion a un archivo CSV.
+        """Exporta las lecturas registradas a un archivo CSV.
+
+        Se exporta el historial de la tabla (una lectura cada N segundos segun
+        el intervalo de registro), no todas las lecturas del motor CEP.
 
         El CSV se escribe en UTF-8 con BOM (utf-8-sig) para que Excel
         reconozca los acentos de los estados, y con punto y coma como
@@ -182,7 +201,7 @@ class MainWindow(QWidget):
             with open(ruta, "w", newline="", encoding="utf-8-sig") as archivo:
                 escritor = csv.writer(archivo, delimiter=";")
                 escritor.writerow(["hora", "temperatura_c", "estado", "fuera_de_limite"])
-                for muestra in self.motor.muestras:
+                for muestra in self.registro.muestras:
                     escritor.writerow(
                         [
                             muestra.marca_temporal,
@@ -196,7 +215,7 @@ class MainWindow(QWidget):
             return
 
         self.panel_cep.etiqueta_conteo.setText(
-            f"{len(self.motor.muestras)} muestras exportadas"
+            f"{len(self.registro.muestras)} muestras exportadas"
         )
 
     def estado_conexion(self, estado: str) -> None:

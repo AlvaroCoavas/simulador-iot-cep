@@ -142,6 +142,16 @@ QDoubleSpinBox:focus, QSpinBox:focus {{
     border-color: {AZUL};
 }}
 
+/* Campo de limite con valor invalido. */
+QDoubleSpinBox[error="true"] {{
+    border: 1px solid {ROJO};
+    color: {ROJO};
+}}
+
+QDoubleSpinBox[error="true"]:focus {{
+    border-color: {ROJO};
+}}
+
 QDoubleSpinBox::up-button, QSpinBox::up-button,
 QDoubleSpinBox::down-button, QSpinBox::down-button {{
     background: {FONDO_CARD};

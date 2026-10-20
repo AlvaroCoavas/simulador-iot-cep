@@ -5,6 +5,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -24,6 +25,19 @@ FUENTE_LOCAL = "local"
 AMBIENTE_MIN = -10.0
 AMBIENTE_MAX = 30.0
 
+# Rango valido del sensor DS18B20 (C).
+RANGO_SENSOR_MIN = -55.0
+RANGO_SENSOR_MAX = 125.0
+
+# Limites de control por defecto (C).
+LSC_POR_DEFECTO = 8.0
+LIC_POR_DEFECTO = 2.0
+OBJ_POR_DEFECTO = 5.0
+
+# Opciones del intervalo de registro (s) para la tabla y el CSV.
+INTERVALOS = (1, 5, 10, 30, 60)
+INTERVALO_POR_DEFECTO = 5
+
 
 class HardwarePanel(QWidget):
     """Estado del hardware virtual: valor de temperatura, LED y controles."""
@@ -32,6 +46,7 @@ class HardwarePanel(QWidget):
     fuente_cambiada = pyqtSignal(str)
     ambiente_cambiado = pyqtSignal(float)
     limites_cambiados = pyqtSignal(float, float, float)
+    intervalo_cambiado = pyqtSignal(int)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -139,23 +154,25 @@ class HardwarePanel(QWidget):
 
         layout_limites = QHBoxLayout()
         layout_limites.setSpacing(8)
-        for texto, valor, sufijo in (
-            ("LSC", 8.0, "°C"),
-            ("LIC", 2.0, "°C"),
-            ("OBJ", 5.0, "°C"),
+        for texto, valor in (
+            ("LSC", LSC_POR_DEFECTO),
+            ("LIC", LIC_POR_DEFECTO),
+            ("OBJ", OBJ_POR_DEFECTO),
         ):
             etiqueta = QLabel(texto)
             etiqueta.setObjectName("Etiqueta")
             layout_limites.addWidget(etiqueta)
-            from PyQt6.QtWidgets import QDoubleSpinBox
 
             campo = QDoubleSpinBox()
-            campo.setRange(-50.0, 80.0)
+            campo.setRange(RANGO_SENSOR_MIN, RANGO_SENSOR_MAX)
             campo.setDecimals(1)
             campo.setSingleStep(0.5)
             campo.setValue(valor)
             campo.setSuffix(" °C")
+            # Se valida al cambiar el valor y tambien al salir del campo
+            # o pulsar Enter.
             campo.valueChanged.connect(self._emit_limites)
+            campo.editingFinished.connect(self._emit_limites)
             layout_limites.addWidget(campo)
             if texto == "LSC":
                 self.campo_lsc = campo
@@ -164,6 +181,26 @@ class HardwarePanel(QWidget):
             else:
                 self.campo_obj = campo
         layout_config.addLayout(layout_limites)
+
+        # Mensaje de error de los limites (oculto mientras sean validos).
+        self.etiqueta_error_limites = QLabel("")
+        self.etiqueta_error_limites.setStyleSheet(f"color: {theme.ROJO}; font-size: 11px;")
+        self.etiqueta_error_limites.setWordWrap(True)
+        self.etiqueta_error_limites.setVisible(False)
+        layout_config.addWidget(self.etiqueta_error_limites)
+
+        # --- Intervalo de registro (tabla y CSV) ---
+        layout_intervalo = QHBoxLayout()
+        etiqueta_intervalo = QLabel("Intervalo de registro")
+        etiqueta_intervalo.setObjectName("Etiqueta")
+        layout_intervalo.addWidget(etiqueta_intervalo, 1)
+        self.combo_intervalo = QComboBox()
+        for segundos in INTERVALOS:
+            self.combo_intervalo.addItem(f"{segundos} s", segundos)
+        self.combo_intervalo.setCurrentIndex(INTERVALOS.index(INTERVALO_POR_DEFECTO))
+        self.combo_intervalo.currentIndexChanged.connect(self._emit_intervalo)
+        layout_intervalo.addWidget(self.combo_intervalo)
+        layout_config.addLayout(layout_intervalo)
 
         self.boton_reiniciar = QPushButton("Reiniciar Métricas CEP")
         self.boton_reiniciar.clicked.connect(self.reiniciar.emit)
@@ -184,10 +221,102 @@ class HardwarePanel(QWidget):
     def _emit_fuente(self, _indice: int) -> None:
         self.fuente_cambiada.emit(self.combo_fuente.currentData())
 
-    def _emit_limites(self, _valor: float) -> None:
-        self.limites_cambiados.emit(
-            self.campo_lsc.value(), self.campo_lic.value(), self.campo_obj.value()
-        )
+    def _emit_limites(self, _valor: float | None = None) -> None:
+        """Valida los limites y los aplica solo si son correctos.
+
+        Si la combinacion es invalida NO se emite nada: el motor CEP y el
+        firmware se quedan con los ultimos limites validos.
+        """
+        try:
+            ok, mensaje, campo = self._validar_limites()
+            if not ok:
+                self._mostrar_error_limites(mensaje, campo)
+                return
+            self._mostrar_error_limites("", None)
+            self.limites_cambiados.emit(
+                self.campo_lsc.value(), self.campo_lic.value(), self.campo_obj.value()
+            )
+        except Exception as exc:  # noqa: BLE001
+            # PyQt aborta el proceso si una excepcion escapa de un slot.
+            self.etiqueta_error_limites.setText(f"No se pudieron validar los limites: {exc}")
+            self.etiqueta_error_limites.setVisible(True)
+
+    def _emit_intervalo(self, _indice: int) -> None:
+        """El intervalo de registro solo afecta a la tabla y al CSV."""
+        self.intervalo_cambiado.emit(int(self.combo_intervalo.currentData()))
+
+    # ------------------------------ Validacion ----------------------------
+    def _validar_limites(self) -> tuple[bool, str, str | None]:
+        """Comprueba los limites de control.
+
+        Devuelve (valido, mensaje, campo_problematico) donde el campo es
+        "lsc", "lic" u "obj".
+        """
+        lsc = self.campo_lsc.value()
+        lic = self.campo_lic.value()
+        obj = self.campo_obj.value()
+
+        if not (RANGO_SENSOR_MIN <= lic <= RANGO_SENSOR_MAX):
+            return (
+                False,
+                f"LIC debe estar entre {RANGO_SENSOR_MIN:g} y {RANGO_SENSOR_MAX:g} °C "
+                f"(rango del sensor)",
+                "lic",
+            )
+        if not (RANGO_SENSOR_MIN <= lsc <= RANGO_SENSOR_MAX):
+            return (
+                False,
+                f"LSC debe estar entre {RANGO_SENSOR_MIN:g} y {RANGO_SENSOR_MAX:g} °C "
+                f"(rango del sensor)",
+                "lsc",
+            )
+        if lic >= obj:
+            return False, "LIC debe ser menor que el objetivo", "lic"
+        if lsc <= obj:
+            return False, "LSC debe ser mayor que el objetivo", "lsc"
+        if not (lic < obj < lsc):
+            return False, "El objetivo debe estar entre LIC y LSC", "obj"
+        return True, "", None
+
+    def _mostrar_error_limites(self, mensaje: str, campo: str | None) -> None:
+        """Marca en rojo el campo problema y muestra el mensaje."""
+        for nombre, widget in (
+            ("lsc", self.campo_lsc),
+            ("lic", self.campo_lic),
+            ("obj", self.campo_obj),
+        ):
+            marcado = nombre == campo
+            if bool(widget.property("error")) != marcado:
+                widget.setProperty("error", marcado)
+                # Repintar el widget para que el estilo tenga en cuenta la
+                # propiedad dinamica. Ojo: el metodo polish() vive en el
+                # estilo, no en el widget.
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+        self.etiqueta_error_limites.setText(mensaje)
+        self.etiqueta_error_limites.setVisible(bool(mensaje))
+
+    def limites_son_validos(self) -> bool:
+        """True si los limites del formulario cumplen las reglas."""
+        return self._validar_limites()[0]
+
+    def restablecer_limites_si_invalidos(self) -> bool:
+        """Vuelve a los limites por defecto si los actuales no son validos.
+
+        Devuelve True si los restauro.
+        """
+        if self.limites_son_validos():
+            return False
+        for campo, valor in (
+            (self.campo_lsc, LSC_POR_DEFECTO),
+            (self.campo_lic, LIC_POR_DEFECTO),
+            (self.campo_obj, OBJ_POR_DEFECTO),
+        ):
+            campo.blockSignals(True)
+            campo.setValue(valor)
+            campo.blockSignals(False)
+        self._emit_limites()
+        return True
 
     # ------------------------------ Actualizacion -------------------------
     def set_lectura(self, temperatura: float, estado: EstadoProceso) -> None:
