@@ -1,0 +1,9 @@
+[wokwi]
+version = 1
+firmware = '.pio/build/esp32dev/firmware.bin'
+elf = '.pio/build/esp32dev/firmware.elf'
+
+# Puerto para capturar la consola serie de la simulacion a un archivo:
+#   py -m serial.tools.miniterm rfc2217://localhost:4000 115200  > serial.log
+# (o usa la pestana "Serial Monitor" de la extension Wokwi)
+rfc2217ServerPort = 4000
