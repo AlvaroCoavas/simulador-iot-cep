@@ -8,7 +8,8 @@ Reglas de clasificacion (definidas por el cliente):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Iterable
 
@@ -36,6 +37,17 @@ class Muestra:
     n: int
     temperatura: float
     estado: EstadoProceso
+    instante: datetime = field(default_factory=datetime.now)
+
+    @property
+    def hora(self) -> str:
+        """Hora de la lectura, para mostrar en la tabla (HH:MM:SS)."""
+        return self.instante.strftime("%H:%M:%S")
+
+    @property
+    def marca_temporal(self) -> str:
+        """Marca temporal completa, para la exportacion a CSV."""
+        return self.instante.strftime("%Y-%m-%d %H:%M:%S")
 
     @property
     def fuera_de_limite(self) -> bool:
@@ -68,7 +80,12 @@ class CepEngine:
     def agregar(self, temperatura: float) -> Muestra:
         """Registra una lectura y devuelve la muestra resultante."""
         self._n += 1
-        m = Muestra(self._n, float(temperatura), self.clasificar(temperatura))
+        m = Muestra(
+            self._n,
+            float(temperatura),
+            self.clasificar(temperatura),
+            datetime.now(),
+        )
         self.muestras.append(m)
         return m
 

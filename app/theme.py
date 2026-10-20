@@ -189,6 +189,58 @@ QScrollArea, QScrollArea > QWidget > QWidget {{
 QSplitter::handle {{
     background-color: transparent;
 }}
+
+QTabWidget::pane {{
+    border: 1px solid {BORDE};
+    border-radius: 8px;
+    background: transparent;
+}}
+
+QTabBar::tab {{
+    background-color: {FONDO_CARD};
+    color: {TEXTO_SUAVE};
+    border: 1px solid {BORDE};
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 7px 18px;
+    margin-right: 3px;
+}}
+
+QTabBar::tab:selected {{
+    background-color: {FONDO_ALT};
+    color: {TEXTO};
+}}
+
+QTableWidget {{
+    background-color: #1f1f1f;
+    alternate-background-color: {FONDO_CARD};
+    gridline-color: {BORDE};
+    border: 1px solid {BORDE};
+    border-radius: 6px;
+}}
+
+QTableWidget::item {{
+    padding: 4px 8px;
+}}
+
+QTableWidget::item:selected {{
+    background-color: {AZUL};
+    color: #ffffff;
+}}
+
+QHeaderView {{
+    background-color: {FONDO_ALT};
+}}
+
+QHeaderView::section {{
+    background-color: {FONDO_ALT};
+    color: {TEXTO_SUAVE};
+    border: none;
+    border-bottom: 1px solid {BORDE};
+    padding: 6px 8px;
+    font-weight: 600;
+}}
 """
 
 # Qt NO aplica las reglas ":disabled" a los sub-controles del slider (::sub-page y

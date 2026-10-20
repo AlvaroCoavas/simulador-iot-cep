@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
+
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QHBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QWidget
 
 from .. import config
 from ..core.cep_engine import CepEngine, EstadoProceso
@@ -44,6 +46,7 @@ class MainWindow(QWidget):
         self.panel_hardware.fuente_cambiada.connect(self.cambiar_fuente)
         self.panel_hardware.ambiente_cambiado.connect(self.fijar_ambiente)
         self.panel_hardware.limites_cambiados.connect(self.cambiar_limites)
+        self.panel_cep.exportar_solicitado.connect(self.exportar_csv)
 
         # --- Enlace MQTT ---
         self.mqtt = MqttLink(
@@ -95,6 +98,7 @@ class MainWindow(QWidget):
 
         self.panel_hardware.set_lectura(muestra.temperatura, muestra.estado)
         self.panel_cep.set_banner(muestra.estado)
+        self.panel_cep.set_muestra(muestra)
         self.panel_cep.set_grafico(
             *self.motor.serie(config.VENTANA_GRAFICO),
             self.motor.lsc,
@@ -148,6 +152,7 @@ class MainWindow(QWidget):
     def reiniciar_metricas(self) -> None:
         """Borra las muestras acumuladas (no cambia los limites)."""
         self.motor.reiniciar()
+        self.panel_cep.limpiar_tabla()
         self.panel_cep.set_grafico(
             *self.motor.serie(config.VENTANA_GRAFICO),
             self.motor.lsc,
@@ -155,6 +160,44 @@ class MainWindow(QWidget):
             self.motor.objetivo,
         )
         self.panel_cep.set_indicadores(0.0, 0, 0.0, EstadoProceso.ESTABLE)
+
+    def exportar_csv(self) -> None:
+        """Exporta TODAS las lecturas de la sesion a un archivo CSV.
+
+        El CSV se escribe en UTF-8 con BOM (utf-8-sig) para que Excel
+        reconozca los acentos de los estados, y con punto y coma como
+        separador, que es el que espera Excel en configuracion regional
+        espanola. La temperatura se escribe con coma decimal.
+        """
+        ruta, _ = QFileDialog.getSaveFileName(
+            self,
+            "Exportar muestras a CSV",
+            "muestras_cep.csv",
+            "Archivos CSV (*.csv);;Todos los archivos (*)",
+        )
+        if not ruta:
+            return
+
+        try:
+            with open(ruta, "w", newline="", encoding="utf-8-sig") as archivo:
+                escritor = csv.writer(archivo, delimiter=";")
+                escritor.writerow(["hora", "temperatura_c", "estado", "fuera_de_limite"])
+                for muestra in self.motor.muestras:
+                    escritor.writerow(
+                        [
+                            muestra.marca_temporal,
+                            f"{muestra.temperatura:.2f}".replace(".", ","),
+                            muestra.estado.value,
+                            "Sí" if muestra.fuera_de_limite else "No",
+                        ]
+                    )
+        except OSError as exc:
+            self.panel_cep.etiqueta_conteo.setText(f"Error al exportar: {exc}")
+            return
+
+        self.panel_cep.etiqueta_conteo.setText(
+            f"{len(self.motor.muestras)} muestras exportadas"
+        )
 
     def estado_conexion(self, estado: str) -> None:
         """Refleja el estado del enlace MQTT en el panel de hardware."""

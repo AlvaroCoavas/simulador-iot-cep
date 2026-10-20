@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .. import theme
-from ..core.cep_engine import EstadoProceso
+from ..core.cep_engine import EstadoProceso, Muestra
 from .chart import ChartControl
-from .widgets import Banner, Card, TituloPanel
+from .data_table import TablaMuestras
+from .widgets import Banner, Card, TituloPanel, tarjeta
 
 # Textos del banner (replican el prototipo del cliente).
 TEXTO_ESTABLE = "PROCESO BAJO CONTROL ESTADÍSTICO"
@@ -44,12 +53,16 @@ class Metrica(QFrame):
 
 
 class CepPanel(QWidget):
-    """Carta de control, banner de estado e indicadores."""
+    """Carta de control, banner de estado, tabla de muestras e indicadores."""
+
+    #: Se emite cuando el usuario pulsa "Exportar CSV".
+    exportar_solicitado = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._construir_ui()
 
+    # --------------------------------- UI ---------------------------------
     def _construir_ui(self) -> None:
         raiz = QVBoxLayout(self)
         raiz.setContentsMargins(0, 0, 0, 0)
@@ -61,13 +74,20 @@ class CepPanel(QWidget):
         self.banner.set_estado(TEXTO_ESTABLE, theme.VERDE)
         raiz.addWidget(self.banner)
 
-        # --- Grafico ---
+        # --- Pestanas: grafico / tabla de muestras ---
+        # El grafico conserva su tamano actual: la tabla va en otra pestana.
+        self.pestanas = QTabWidget()
+        self.pestanas.setDocumentMode(True)
+
         tarjeta_grafico = Card()
         layout_grafico = QVBoxLayout(tarjeta_grafico)
         layout_grafico.setContentsMargins(10, 8, 10, 8)
         self.chart = ChartControl()
         layout_grafico.addWidget(self.chart)
-        raiz.addWidget(tarjeta_grafico, 1)
+        self.pestanas.addTab(tarjeta_grafico, "Gráfico de control")
+
+        self.pestanas.addTab(self._crear_pestana_muestras(), "Muestras")
+        raiz.addWidget(self.pestanas, 1)
 
         # --- Barra de indicadores ---
         barra = QHBoxLayout()
@@ -78,6 +98,30 @@ class CepPanel(QWidget):
         for metrica in (self.metrica_media, self.metrica_fuera, self.metrica_defectos):
             barra.addWidget(metrica, 1)
         raiz.addLayout(barra)
+
+    def _crear_pestana_muestras(self) -> QWidget:
+        """Construye la pestana con la tabla de muestras y el boton de export."""
+        tarjeta_muestras, layout = tarjeta()
+
+        fila = QHBoxLayout()
+        fila.setSpacing(10)
+        titulo = QLabel("MUESTRAS DEL PROCESO")
+        titulo.setObjectName("TituloPanel")
+        fila.addWidget(titulo)
+
+        self.etiqueta_conteo = QLabel("0 muestras")
+        self.etiqueta_conteo.setObjectName("Subtitulo")
+        fila.addWidget(self.etiqueta_conteo)
+        fila.addStretch(1)
+
+        self.boton_exportar = QPushButton("Exportar CSV")
+        self.boton_exportar.clicked.connect(self.exportar_solicitado.emit)
+        fila.addWidget(self.boton_exportar)
+        layout.addLayout(fila)
+
+        self.tabla = TablaMuestras()
+        layout.addWidget(self.tabla, 1)
+        return tarjeta_muestras
 
     # ------------------------------ Actualizacion -------------------------
     def set_banner(self, estado: EstadoProceso) -> None:
@@ -91,6 +135,16 @@ class CepPanel(QWidget):
 
     def set_grafico(self, x, y, fuera, lsc: float, lic: float, objetivo: float) -> None:
         self.chart.actualizar(x, y, fuera, lsc, lic, objetivo)
+
+    def set_muestra(self, muestra: Muestra) -> None:
+        """Anade una lectura a la tabla (estado ya calculado por el motor CEP)."""
+        self.tabla.agregar(muestra)
+        self.etiqueta_conteo.setText(f"{self.tabla.rowCount()} muestras")
+
+    def limpiar_tabla(self) -> None:
+        """Vacia la tabla de muestras."""
+        self.tabla.limpiar()
+        self.etiqueta_conteo.setText("0 muestras")
 
     def set_indicadores(
         self, media: float, fuera: int, indice: float, estado: EstadoProceso
