@@ -46,8 +46,12 @@ copy "dist\SimuladorCEP.exe" "release\" >nul
 copy ".pio\build\esp32dev\firmware.bin" "release\" >nul
 copy ".pio\build\esp32dev\firmware.elf" "release\" >nul
 copy "diagram.json" "release\" >nul
-copy "GUIA_CLIENTE.md" "release\LEEME.txt" >nul
 copy "requirements.txt" "release\" >nul
+if exist "entrega\GUIA_CLIENTE.md" (
+    copy "entrega\GUIA_CLIENTE.md" "release\LEEME.txt" >nul
+) else (
+    echo       AVISO: no existe entrega\GUIA_CLIENTE.md, el LEEME.txt no se incluira.
+)
 echo       release\SimuladorCEP.exe
 echo       release\firmware.bin
 echo       release\firmware.elf

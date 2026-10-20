@@ -17,6 +17,11 @@ dist/
 release/
 *.zip
 
+# --- Material exclusivo del cliente (no se publica en el repositorio) ---
+# La guia de instalacion y el guion de demo se reparten dentro de un ZIP,
+# no como codigo abierto.
+entrega/
+
 # --- Varios ---
 preview_*.png
 serial.log
@@ -31,5 +36,6 @@ Thumbs.db
 .vscode/tasks.json
 .vscode/settings.json
 
-# Herramientas de agente (no forma parte de la entrega)
+# --- Herramientas de agente (no forman parte del proyecto) ---
 .agents/
+skills-lock.json
