@@ -6,6 +6,11 @@ El ESP32 publica la temperatura del sensor cada segundo y el panel calcula los
 indicadores de control estadístico de procesos, dibuja la carta de control
 individual (X) y avisa cuando el proceso sale de control.
 
+> 📖 **[`GUIA_USUARIO.md`](GUIA_USUARIO.md)** — guía de acompañamiento: cómo
+> explicar el proyecto sin ser programador, glosario de términos, mapa de
+> rutas de cada componente visible en pantalla y comprobaciones previas a
+> presentar.
+
 ---
 
 ## 1. Arquitectura
