@@ -22,13 +22,24 @@ VERSION_DESTINO="${1:-3.11.13}"
 
 # --- Localiza el paquete pythonforandroid ------------------------------------
 RECETAS=""
-if python -c "import pythonforandroid" >/dev/null 2>&1; then
-    RECETAS=$(python -c "import os, pythonforandroid; print(os.path.join(os.path.dirname(pythonforandroid.__file__), 'recipes'))")
-else
-    # p4a todavia no esta instalado: se busca en las rutas habituales.
+
+# 1) Probando con los interpretes disponibles.
+for py in python python3 /home/user/.venv/bin/python /root/.venv/bin/python /usr/bin/python3; do
+    if command -v "$py" >/dev/null 2>&1 || [ -x "$py" ]; then
+        RECETAS=$("$py" -c "import os, pythonforandroid; print(os.path.join(os.path.dirname(pythonforandroid.__file__), 'recipes'))" 2>/dev/null || true)
+        if [ -n "$RECETAS" ]; then
+            break
+        fi
+    fi
+done
+
+# 2) Si no aparece, se busca en el sistema de ficheros.
+if [ -z "$RECETAS" ]; then
     for base in \
-        "$HOME/.local/lib"/python*/site-packages \
-        "$HOME/.venv/lib"/python*/site-packages \
+        /home/*/.venv/lib/python*/site-packages \
+        /home/*/.local/lib/python*/site-packages \
+        /root/.venv/lib/python*/site-packages \
+        /root/.local/lib/python*/site-packages \
         /usr/local/lib/python*/site-packages \
         /usr/lib/python*/site-packages
     do
