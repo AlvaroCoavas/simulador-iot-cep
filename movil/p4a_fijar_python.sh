@@ -20,7 +20,30 @@ set -e
 
 VERSION_DESTINO="${1:-3.11.13}"
 
-RECETAS=$(python -c "import os, pythonforandroid; print(os.path.join(os.path.dirname(pythonforandroid.__file__), 'recipes'))")
+# --- Localiza el paquete pythonforandroid ------------------------------------
+RECETAS=""
+if python -c "import pythonforandroid" >/dev/null 2>&1; then
+    RECETAS=$(python -c "import os, pythonforandroid; print(os.path.join(os.path.dirname(pythonforandroid.__file__), 'recipes'))")
+else
+    # p4a todavia no esta instalado: se busca en las rutas habituales.
+    for base in \
+        "$HOME/.local/lib"/python*/site-packages \
+        "$HOME/.venv/lib"/python*/site-packages \
+        /usr/local/lib/python*/site-packages \
+        /usr/lib/python*/site-packages
+    do
+        if [ -d "$base/pythonforandroid/recipes" ]; then
+            RECETAS="$base/pythonforandroid/recipes"
+            break
+        fi
+    done
+fi
+
+if [ -z "$RECETAS" ]; then
+    echo "  AVISO: no se encuentra python-for-android; se deja como esta."
+    exit 0
+fi
+
 echo "  recetas de p4a: $RECETAS"
 
 for r in python3 hostpython3; do

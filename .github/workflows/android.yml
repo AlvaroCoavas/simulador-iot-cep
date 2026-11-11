@@ -28,10 +28,11 @@ jobs:
         run: |
           docker pull kivy/buildozer:latest
           docker run --rm \
+            --entrypoint /bin/bash \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -v "$HOME/.buildozer:/home/user/.buildozer" \
             kivy/buildozer:latest \
-            bash -c 'sh movil/p4a_fijar_python.sh && buildozer -v android debug'
+            -c 'sh movil/p4a_fijar_python.sh && buildozer -v android debug'
           ls -la bin/ || true
 
       # ------------------------------------------------------------------
@@ -50,6 +51,9 @@ jobs:
             zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
           python3 -m pip install --user --upgrade buildozer cython==0.29.36 virtualenv
           export PATH="$HOME/.local/bin:$PATH"
+          # p4a se instala aqui para poder fijar su version de Python ANTES
+          # de que buildozer empiece a compilar.
+          python3 -m pip install --user --upgrade python-for-android
           sh movil/p4a_fijar_python.sh
           buildozer -v android debug
           ls -la bin/ || true
