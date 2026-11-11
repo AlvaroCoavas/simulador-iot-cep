@@ -383,7 +383,7 @@ class FilaRadio(BoxLayout):
         self.al_seleccionar = al_seleccionar
         self.seleccionado = seleccionado
 
-        self.indicador = Widget(size_hint=(None, None), size=(dp(22), dp(22)), valign="top")
+        self.indicador = Widget(size_hint=(None, None), size=(dp(22), dp(22)))
         self.indicador.bind(pos=self._pintar_indicador, size=self._pintar_indicador)
         self.titulo = Etiqueta(text=titulo, font_size=sp(14), color=rgba(TEMA.TEXTO), bold=True, halign="left", valign="middle")
         self.subtitulo = Etiqueta(text=subtitulo, font_size=sp(11.5), color=rgba(TEMA.TEXTO_SUAVE), halign="left", valign="middle")
@@ -407,7 +407,13 @@ class FilaRadio(BoxLayout):
                 self._punto = None
 
         self.bind(on_touch_down=self._tocar)
+        self.bind(pos=self._alinear_indicador, size=self._alinear_indicador)
+        self._alinear_indicador()
         self._pintar_indicador()
+
+    def _alinear_indicador(self, *_args) -> None:
+        """Pega el radio a la parte alta de la fila (alineado con el titulo)."""
+        self.indicador.y = self.top - self.indicador.height
 
     def _pintar_indicador(self, *_args) -> None:
         """Dibuja el radio. OJO: el canvas usa coordenadas absolutas."""
