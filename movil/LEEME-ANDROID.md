@@ -117,6 +117,26 @@ También puedes hacerlo desde **Android Studio → More Actions → SDK Manager 
 SDK Tools → Android Emulator** y **SDK Platforms → Android 15 → Google APIs
 Intel x86_64 Atom System Image**.
 
+> **Si `sdkmanager` da timeouts al descargar** (le pasa con frecuencia: el
+> servidor de Google es lento o inaccesible desde بعض redes), descarga el ZIP
+> de la imagen a mano desde un **espejo** y descomprímelo en la carpeta que
+> corresponde:
+>
+> ```powershell
+> $sdk = "$env:LOCALAPPDATA\Android\Sdk"
+> $zip = "$env:TEMP\x86_64-35_r02.zip"
+> Invoke-WebRequest "https://mirrors.cloud.tencent.com/AndroidSDK/sys-img/android/x86_64-35_r02.zip" -OutFile $zip
+> $destino = "$sdk\system-images\android-35\default\x86_64"
+> New-Item -ItemType Directory -Force -Path $destino | Out-Null
+> Expand-Archive -Path $zip -DestinationPath "$destino\x86_64" -Force
+> # el ZIP trae una carpeta x86_64/ interna: hay que subir su contenido
+> Get-ChildItem "$destino\x86_64\x86_64" | Move-Item -Destination $destino -Force
+> Remove-Item "$destino\x86_64" -Recurse -Force
+> ```
+>
+> Comprueba que el SDK la ve:
+> `& "$sdk\cmdline-tools\latest\bin\sdkmanager.bat" --list_installed`
+
 ### 5.2 Crear el dispositivo virtual
 
 Desde **Android Studio → Device Manager → + (Create Virtual Device)**:
@@ -239,6 +259,15 @@ público `broker.emqx.io`.
 - No hay **notificaciones push** ni **exportación a CSV** en la versión móvil.
 - El MQTT va en **texto plano** por el broker público (sin TLS). Para producción
   haría falta `broker.emqx.io:8883` con `tls_set()`.
+
+### Detalles técnicos del empaquetado
+
+| Detalle | Por qué |
+|---|---|
+| **El APK se compila con Python 3.11**, no con la 3.14 | python-for-android usa CPython 3.14, pero **ni pyjnius ni Kivy publican ruedas para Android con cp314**, así que el build falla con `No matching distribution found for pyjnius`. El script `movil/p4a_fijar_python.sh` baja las recetas `python3` y `hostpython3` de p4a a 3.11.13 antes de compilar. |
+| **La imagen de la app se importa en `movil/main.py`** | buildozer exige que el script principal se llame exactamente `main.py` en la raíz. `simulador.py` es el punto de entrada del `.exe` de escritorio y no se toca. |
+| **`source.include_patterns` en `buildozer.spec`** | Sin esto, buildozer copiaría al APK el firmware, los `.exe` y las entregas (cientos de MB). Solo se empaqueta `movil/` + el motor CEP + la configuración. |
+| **`compilar-apk.bat` copia a `C:\build\cepmovil`** | Gradle y `aapt2` no soportan rutas con espacios ni acentos como `...\Proyecto predeterminado\...`. |
 
 ---
 
