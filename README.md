@@ -11,6 +11,26 @@ individual (X) y avisa cuando el proceso sale de control.
 > rutas de cada componente visible en pantalla y comprobaciones previas a
 > presentar.
 
+> 📱 **[`movil/LEEME-ANDROID.md`](movil/LEEME-ANDROID.md)** — la misma
+> aplicación en Android (Kivy): cómo compilar el APK, cómo probarlo en el
+> emulador o en un teléfono y cómo se conecta con el broker.
+
+---
+
+## 0. Las dos aplicaciones
+
+| | Panel de escritorio | App móvil Android |
+|---|---|---|
+| Tecnología | Python + **PyQt6** + matplotlib | Python + **Kivy** |
+| Ejecutable | `SimuladorCEP.exe` (PyInstaller) | `.apk` (buildozer) |
+| Motor CEP | `app/core/cep_engine.py` | **el mismo fichero** |
+| Cambia los límites | ✅ (los publica al ESP32) | ❌ solo los muestra |
+| Instalar | Windows | Android 7.0+ |
+
+Ambas se suscriben al mismo tópico MQTT y muestran el mismo estado CEP. La
+app móvil es un **segundo observador** del sistema, no una copia: por eso
+los límites de control los cambia **solo** el panel de escritorio.
+
 ---
 
 ## 1. Arquitectura
@@ -88,6 +108,24 @@ _Gráfico de control_ y _Muestras_.
 | **Wokwi (MQTT)** _(por defecto)_ | Deshabilitado | Del DS18B20 real, por MQTT                         |
 | **Simulación local**             | Habilitado    | Del modelo térmico local (arrastrar el deslizador) |
 
+### App móvil (Android)
+
+```powershell
+py -3.14 -m movil.main     # ventana con proporciones de móvil en el escritorio (Kivy)
+```
+
+Ojo: Kivy **no tiene ruedas para Python 3.15**; usa `py -3.14`.
+
+Para generar el `.apk`:
+
+```powershell
+.\compilar-apk.bat          # local, con Docker
+```
+
+o desde **GitHub Actions → Compilar APK Android → Run workflow** (el APK
+queda como artefacto descargable). El detalle completo está en
+[`movil/LEEME-ANDROID.md`](movil/LEEME-ANDROID.md).
+
 ---
 
 ## 3. Estructura
@@ -113,6 +151,24 @@ app/
 src/main.cpp           firmware ESP32 (PlatformIO)
 include/config.h       broker, tópicos, pines, constantes de simulación
 tools/mqtt_probe.py    lector MQTT de consola
+
+movil/                 app Android (Kivy) — comparte motor con el escritorio
+├── main.py            aplicación Kivy (pantallas + barra inferior)
+├── config.py          broker y tópicos heredados de app/config.py
+├── theme.py           paleta clara de la imagen de referencia
+├── controlador.py     estado global: MQTT ↔ motor CEP ↔ historial
+├── mqtt_client.py     cliente MQTT de SOLO LECTURA (telemetry + limits)
+├── storage.py         historial local en SQLite (Hoy / 7 días / 30 días)
+└── ui/
+    ├── inicio.py      pantalla 1: temperatura actual, rango, estado
+    ├── grafica.py     pantalla 2: historial con selector de rango
+    ├── ajustes.py     pantalla 3: fuente, intervalo y límites (solo lectura)
+    ├── carta.py       carta de control dibujada en canvas (sin matplotlib)
+    └── widgets.py     tarjetas, iconos vectoriales, barra inferior
+
+main.py                punto de entrada que exige buildozer (Android)
+buildozer.spec         configuración del APK
+compilar-apk.bat       compilación local del APK con Docker
 ```
 
 ---

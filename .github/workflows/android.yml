@@ -12,32 +12,54 @@ jobs:
   apk:
     name: APK (Kivy + buildozer)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Copiar el repositorio
         uses: actions/checkout@v4
 
-      - name: Preparar python-for-android
+      # ------------------------------------------------------------------
+      # VIA 1 (preferida): imagen oficial de buildozer.
+      # Trae el SDK de Android, el NDK y todas las herramientas ya
+      # configuradas, que es donde mas fallos se dan al compilar a mano.
+      # ------------------------------------------------------------------
+      - name: Compilar el APK (Docker)
+        id: docker
+        run: |
+          docker pull kivy/buildozer:latest
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/user/hostcwd" \
+            -v "$HOME/.buildozer:/home/user/.buildozer" \
+            kivy/buildozer:latest \
+            android debug
+          ls -la bin/ || true
+
+      # ------------------------------------------------------------------
+      # VIA 2 (alternativa): buildozer instalado con pip.
+      # `libtool-bin` es imprescindible: sin el, `autoreconf` falla con
+      # "possibly undefined macro: LT_SYS_SYMBOL_USCORE" al compilar el
+      # interprete de Python para el host.
+      # ------------------------------------------------------------------
+      - name: Compilar el APK (pip, alternativa)
+        if: failure() && steps.docker.outcome == 'failure'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config \
+            git zip unzip openjdk-17-jdk python3-pip \
+            autoconf automake libtool libtool-bin pkg-config \
             zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
-          python3 -m pip install --user buildozer cython==0.29.36 virtualenv
-
-      - name: Compilar el APK
-        run: |
-          # El buildozer de python-for-android necesita una version concreta de
-          # Cython y un SDK/NDK propios; se deja que los descargue.
+          python3 -m pip install --user --upgrade buildozer cython==0.29.36 virtualenv
           export PATH="$HOME/.local/bin:$PATH"
-          buildozer -v android debug \
-            --arch arm64-v8a \
-            --arch armeabi-v7a \
-            --arch x86_64
+          buildozer -v android debug
+          ls -la bin/ || true
 
-      - name: Mostrar los artefactos generados
-        run: ls -la bin/ || true
+      - name: Comprobar que hay APK
+        run: |
+          if [ -z "$(ls bin/*.apk 2>/dev/null)" ]; then
+            echo "::error::No se ha generado ningun APK"
+            exit 1
+          fi
+          ls -la bin/*.apk
 
       - name: Publicar el APK
         uses: actions/upload-artifact@v4
