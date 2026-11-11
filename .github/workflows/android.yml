@@ -31,7 +31,7 @@ jobs:
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -v "$HOME/.buildozer:/home/user/.buildozer" \
             kivy/buildozer:latest \
-            android debug
+            bash -c 'sh movil/p4a_fijar_python.sh && buildozer -v android debug'
           ls -la bin/ || true
 
       # ------------------------------------------------------------------
@@ -50,6 +50,7 @@ jobs:
             zlib1g-dev libncurses-dev libtinfo6 cmake libffi-dev libssl-dev
           python3 -m pip install --user --upgrade buildozer cython==0.29.36 virtualenv
           export PATH="$HOME/.local/bin:$PATH"
+          sh movil/p4a_fijar_python.sh
           buildozer -v android debug
           ls -la bin/ || true
 
