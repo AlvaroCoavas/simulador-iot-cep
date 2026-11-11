@@ -33,10 +33,10 @@ individual (X) y avisa cuando el proceso sale de control.
 
 **Tópicos** (prefijo `cep/sensor/diyin-cep-7k3q2026/`, broker `broker.emqx.io:1883`):
 
-| Tópico | Dirección | Payload |
-|---|---|---|
+| Tópico      | Dirección     | Payload                                                          |
+| ----------- | ------------- | ---------------------------------------------------------------- |
 | `telemetry` | ESP32 → panel | `{"t":21.12,"raw":21.06,"seq":128,"dev":"28-01-02-03-04-05-06"}` |
-| `limits` | panel → ESP32 | `{"lsc":8.0,"lic":2.0,"obj":5.0}` |
+| `limits`    | panel → ESP32 | `{"lsc":8.0,"lic":2.0,"obj":5.0}`                                |
 
 `t` es la lectura con la variación controlada aplicada (la que va al CEP y al
 OLED); `raw` es la lectura cruda del sensor.
@@ -79,14 +79,14 @@ py -m app.main          # o:  .\run_panel.bat
 Izquierda: `HARDWARE SIMULADO` (temperatura, LED de estado, límites,
 intervalo de registro). Derecha: `SISTEMA DIGITAL DE MONITOREO (CEP)`
 (banner, carta de control, barra de indicadores) con las pestañas
-*Gráfico de control* y *Muestras*.
+_Gráfico de control_ y _Muestras_.
 
-**Fuente de datos** (desplegable *CONFIGURACIÓN*):
+**Fuente de datos** (desplegable _CONFIGURACIÓN_):
 
-| Fuente | Deslizador | De dónde sale la temperatura |
-|---|---|---|
-| **Wokwi (MQTT)** *(por defecto)* | Deshabilitado | Del DS18B20 real, por MQTT |
-| **Simulación local** | Habilitado | Del modelo térmico local (arrastrar el deslizador) |
+| Fuente                           | Deslizador    | De dónde sale la temperatura                       |
+| -------------------------------- | ------------- | -------------------------------------------------- |
+| **Wokwi (MQTT)** _(por defecto)_ | Deshabilitado | Del DS18B20 real, por MQTT                         |
+| **Simulación local**             | Habilitado    | Del modelo térmico local (arrastrar el deslizador) |
 
 ---
 
@@ -123,29 +123,29 @@ Idénticas en el firmware (`src/main.cpp`) y en el panel (`app/core/cep_engine.p
 
 - `CRÍTICO` → `T > LSC` o `T < LIC`
 - `ACEPTABLE` → dentro de `[LIC, LSC]`, en el **40 % exterior** de la banda
-- `ESTABLE` → resto de la banda *(con 8/2/5 °C: estable en `[4.4, 5.6]`)*
+- `ESTABLE` → resto de la banda _(con 8/2/5 °C: estable en `[4.4, 5.6]`)_
 
 Los límites deben cumplir `LIC < OBJ < LSC` y estar dentro del rango del
 sensor (−55 … 125 °C). Si el usuario escribe un valor incorrecto, la interfaz
 lo marca en rojo, **no lo aplica** y conserva los últimos límites válidos.
 
-| Indicador | Definición |
-|---|---|
-| Media Temporal (X̄) | media de todas las muestras de la sesión |
-| Puntos Fuera de Límite | nº de muestras fuera de `[LIC, LSC]` |
-| Índice de Defectos | fuera de límite / total × 100 |
+| Indicador              | Definición                               |
+| ---------------------- | ---------------------------------------- |
+| Media Temporal (X̄)     | media de todas las muestras de la sesión |
+| Puntos Fuera de Límite | nº de muestras fuera de `[LIC, LSC]`     |
+| Índice de Defectos     | fuera de límite / total × 100            |
 
 ---
 
 ## 5. Constantes ajustables
 
-| Constante | Archivo | Por defecto | Efecto |
-|---|---|---|---|
-| `VAR_AMP` | `include/config.h` | `0.15f` | Amplitud (± °C) de la variación de la lectura |
-| `MAX_SLOPE` | `include/config.h` | `1.0f` | Tasa máxima de cambio del valor publicado (°C/s) |
-| `BROKER` | `include/config.h` | `broker.emqx.io` | Broker MQTT (fallback: `test.mosquitto.org`) |
-| `TOPIC_BASE` | `include/config.h` | `cep/sensor/diyin-cep-7k3q2026` | Prefijo de los tópicos |
-| `LSC/LIC/OBJ` | `include/config.h` | `8.0 / 2.0 / 5.0` | Límites iniciales |
+| Constante     | Archivo            | Por defecto                     | Efecto                                           |
+| ------------- | ------------------ | ------------------------------- | ------------------------------------------------ |
+| `VAR_AMP`     | `include/config.h` | `0.15f`                         | Amplitud (± °C) de la variación de la lectura    |
+| `MAX_SLOPE`   | `include/config.h` | `1.0f`                          | Tasa máxima de cambio del valor publicado (°C/s) |
+| `BROKER`      | `include/config.h` | `broker.emqx.io`                | Broker MQTT (fallback: `test.mosquitto.org`)     |
+| `TOPIC_BASE`  | `include/config.h` | `cep/sensor/diyin-cep-7k3q2026` | Prefijo de los tópicos                           |
+| `LSC/LIC/OBJ` | `include/config.h` | `8.0 / 2.0 / 5.0`               | Límites iniciales                                |
 
 ---
 
@@ -158,10 +158,10 @@ lo marca en rojo, **no lo aplica** y conserva los últimos límites válidos.
   Excel en configuración regional española abre directamente.
 - **PubSubClient ≥ 2.8**: hay que construirlo con un `WiFiClient` global
   (`PubSubClient mqtt(netClient)`). El constructor por defecto deja `_client`
-  en `NULL` y `connect()` peta con *IllegalInstruction*.
+  en `NULL` y `connect()` peta con _IllegalInstruction_.
 - **PyQt6**: los métodos conectados a señales deben tener identificadores
   **ASCII**; con acentos, PyQt6 6.11 sobre Python 3.14 provoca un
-  *access violation* nativo.
+  _access violation_ nativo.
 - **Qt** no aplica las reglas `:disabled` a los sub-controles del slider: el
   estado deshabilitado se fuerza con un estilo inline (`theme.SLIDER_ACTIVO`).
 
@@ -169,25 +169,26 @@ lo marca en rojo, **no lo aplica** y conserva los últimos límites válidos.
 
 ## 7. Problemas frecuentes
 
-| Síntoma | Causa | Solución |
-|---|---|---|
-| Panel no recibe nada | la simulación no corre | ▶ Start Simulation en VS Code |
-| `ERROR: sin WiFi` | falta el gateway IoT | reinicia la simulación |
-| `FALLO … rc=-4` | broker inalcanzable | `BROKER` → `test.mosquitto.org` y recompila |
-| `no se pudo iniciar el SSD1306` | cableado I2C | `diagram.json`: SDA=21, SCL=22, VCC=3V3 |
-| `el DS18B20 no responde` | pull-up o DQ | `esp:4` ↔ `temp1:DQ`, resistor 4.7 kΩ entre DQ y 3V3 |
-| `Guru Meditation … IllegalInstruction` | `PubSubClient` con el constructor por defecto | ver la nota de implementación |
+| Síntoma                                | Causa                                         | Solución                                             |
+| -------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| Panel no recibe nada                   | la simulación no corre                        | ▶ Start Simulation en VS Code                        |
+| `ERROR: sin WiFi`                      | falta el gateway IoT                          | reinicia la simulación                               |
+| `FALLO … rc=-4`                        | broker inalcanzable                           | `BROKER` → `test.mosquitto.org` y recompila          |
+| `no se pudo iniciar el SSD1306`        | cableado I2C                                  | `diagram.json`: SDA=21, SCL=22, VCC=3V3              |
+| `el DS18B20 no responde`               | pull-up o DQ                                  | `esp:4` ↔ `temp1:DQ`, resistor 4.7 kΩ entre DQ y 3V3 |
+| `Guru Meditation … IllegalInstruction` | `PubSubClient` con el constructor por defecto | ver la nota de implementación                        |
 
 ### Versiones de librerías fijadas (`platformio.ini`)
 
-| Librería | Versión |
-|---|---|
-| PubSubClient | 2.8.0 |
-| OneWire | 2.3.8 |
-| DallasTemperature | 3.9.1 |
-| Adafruit SSD1306 | 2.5.13 |
-| Adafruit GFX Library | 1.11.9 |
-| Adafruit BusIO | 1.14.5 |
+| Librería             | Versión |
+| -------------------- | ------- |
+| PubSubClient         | 2.8.0   |
+| OneWire              | 2.3.8   |
+| DallasTemperature    | 3.9.1   |
+| Adafruit SSD1306     | 2.5.13  |
+| Adafruit GFX Library | 1.11.9  |
+| Adafruit BusIO       | 1.14.5  |
 
 Core Arduino-ESP32 3.3.12 (`espressif32@8.0.0`), con la pila de la tarea
 `loop` ampliada a 12 KB.
+3

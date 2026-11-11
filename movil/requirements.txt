@@ -1,0 +1,7 @@
+# Dependencias de la app movil (Kivy).
+# OJO: Kivy necesita un Python con wheel disponible (cp310..cp314).
+# En esta maquina se usa Python 3.14:  py -3.14 -m pip install -r movil/requirements.txt
+kivy>=2.3,<3
+
+# Cliente MQTT (mismo que usa el panel de escritorio).
+paho-mqtt>=2.1,<3
