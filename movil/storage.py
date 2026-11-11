@@ -10,48 +10,67 @@ lecturas ya clasificadas, no se recalcula nada.
 from __future__ import annotations
 
 import os
-import sqlite3
 from datetime import datetime, timedelta
 
 from . import config
 
+try:  # pragma: no cover - depende del interprete que trae el APK
+    import sqlite3
+
+    HAY_SQLITE = True
+except ImportError:  # pragma: no cover
+    sqlite3 = None  # type: ignore[assignment]
+    HAY_SQLITE = False
+
 
 class Almacen:
-    """Base de datos local de lecturas."""
+    """Base de datos local de lecturas.
+
+    Si el interprete no trae `sqlite3` (puede pasar en algún APK), la app
+    sigue funcionando: el historial simply no se guarda, pero la temperatura
+    en vivo y los indicadores no se ven afectados.
+    """
 
     def __init__(self, ruta: str | None = None, intervalo_s: int = config.INTERVALO_POR_DEFECTO):
         self.ruta = ruta or config.ruta_base_datos()
         self.intervalo_s = int(intervalo_s)
-        self._conexion: sqlite3.Connection | None = None
+        self.disponible = HAY_SQLITE
+        self._conexion: "sqlite3.Connection | None" = None
         self._ultimo_guardado: float | None = None
 
     # ------------------------------ Ciclo de vida --------------------------
     def abrir(self) -> None:
         """Crea la base si no existe y prepara el esquema."""
-        carpeta = os.path.dirname(self.ruta)
-        if carpeta:
-            os.makedirs(carpeta, exist_ok=True)
-        self._conexion = sqlite3.connect(self.ruta)
-        self._conexion.execute(
-            """
-            CREATE TABLE IF NOT EXISTS lecturas (
-                id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts     REAL NOT NULL,
-                t      REAL NOT NULL,
-                estado TEXT NOT NULL
+        if not self.disponible:
+            return
+        try:
+            carpeta = os.path.dirname(self.ruta)
+            if carpeta:
+                os.makedirs(carpeta, exist_ok=True)
+            self._conexion = sqlite3.connect(self.ruta)
+            self._conexion.execute(
+                """
+                CREATE TABLE IF NOT EXISTS lecturas (
+                    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts     REAL NOT NULL,
+                    t      REAL NOT NULL,
+                    estado TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        self._conexion.execute("CREATE INDEX IF NOT EXISTS idx_lecturas_ts ON lecturas(ts)")
-        self._conexion.execute(
-            """
-            CREATE TABLE IF NOT EXISTS meta (
-                clave TEXT PRIMARY KEY,
-                valor REAL
+            self._conexion.execute("CREATE INDEX IF NOT EXISTS idx_lecturas_ts ON lecturas(ts)")
+            self._conexion.execute(
+                """
+                CREATE TABLE IF NOT EXISTS meta (
+                    clave TEXT PRIMARY KEY,
+                    valor REAL
+                )
+                """
             )
-            """
-        )
-        self._conexion.commit()
+            self._conexion.commit()
+        except Exception:  # noqa: BLE001 - sin base de datos, pero sin romper la app
+            self.disponible = False
+            self._conexion = None
 
     def cerrar(self) -> None:
         if self._conexion is not None:
@@ -67,6 +86,8 @@ class Almacen:
         """Archiva la lectura si ha pasado el intervalo. Devuelve True si se guardo."""
         if self._conexion is None:
             self.abrir()
+        if self._conexion is None:
+            return False
         momento = float(ts if ts is not None else datetime.now().timestamp())
         if self._ultimo_guardado is not None:
             if momento - self._ultimo_guardado < self.intervalo_s:
