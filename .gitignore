@@ -12,6 +12,12 @@ __pycache__/
 build/
 dist/
 *.spec
+!buildozer.spec
+
+# --- Buildozer / Android ---
+.buildozer/
+bin/
+*.apk
 
 # --- Entrega generada ---
 release/
